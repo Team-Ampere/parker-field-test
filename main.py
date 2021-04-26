@@ -10,24 +10,40 @@ from matplotlib import pyplot as plt
 import pandas as pd
 
 FILE_NAME = '12MAR21.CSV'
-SAMPLE_START = 1500
-SAMPLE_FINISH = 1600
+SAMPLE_START = 0
+SAMPLE_FINISH = -1
+
+START_DATE = '3/12/2021 19:14:59'
+END_DATE = '3/12/2021 19:15:00'
 
 
 def main():
 
     df = initialization()
-    df = df.interpolate(method='linear')
+    df = df.interpolate(method='linear', limit_direction='both')
+
+    print(df)
 
     df.plot()
     plt.show()
 
     values = df.values
 
-    signals = [scipy.fft.fft(value) for value in values.T]
+    length = len(values.T[0])
+    ys = [scipy.fft.fft(value) for value in values.T]
+
+    p2s = [np.abs(y) / length for y in ys]
+    p1s = [p2[0: length // 2 + 1] for p2 in p2s]
+    p1s[:][2: -2] = [2 * p1[2: -2] for p1 in p1s]
+
+    f_s = 60
+    f = f_s * np.arange(0, (length / 2), 1) / length
 
     plt.figure()
-    [plt.plot(df.index, np.abs(signal)) for signal in signals]
+    plt.title('Single-Sided Amplitude Spectrum of X(t)')
+    plt.xlabel('f (Hz)')
+    plt.ylabel('|P1(f)|')
+    [plt.plot(f, p1) for p1 in p1s]
     plt.show()
 
     return
@@ -37,22 +53,22 @@ def initialization():
 
     data_matrix = read_file()
 
-    unix_time_ref = data_matrix[3][0]
-    millisecond_ref = data_matrix[4][0]
-
-    time_ref = unix_time_ref * 1000 + millisecond_ref
-    time_ms = data_matrix[3][SAMPLE_START:SAMPLE_FINISH] * 1000 + data_matrix[4][SAMPLE_START:SAMPLE_FINISH] - time_ref
+    time_ms = data_matrix[3][SAMPLE_START:SAMPLE_FINISH] * 1000 + data_matrix[4][SAMPLE_START:SAMPLE_FINISH]
+    index = pd.to_datetime(arg=time_ms, unit='ms')
+    index = index.round('ms')
 
     d = {'x-axis (nT)': data_matrix[0][SAMPLE_START:SAMPLE_FINISH],
          'y-axis (nT)': data_matrix[1][SAMPLE_START:SAMPLE_FINISH],
          'z-axis (nT)': data_matrix[2][SAMPLE_START:SAMPLE_FINISH]}
 
-    df = pd.DataFrame(d, time_ms)
+    df = pd.DataFrame(d, index=index)
     df = df[~df.index.duplicated()]
 
-    time_ms_uniform = np.arange(time_ms[0], time_ms[-1]+1, 1)
+    df = df.loc[START_DATE: END_DATE]
 
-    df = df.reindex(index=time_ms_uniform)
+    index = pd.date_range(start=START_DATE, end=END_DATE, freq='1ms')
+
+    df = df.reindex(index=index)
 
     return df
 

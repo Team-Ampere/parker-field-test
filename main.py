@@ -6,6 +6,7 @@ import csv
 import numpy as np
 import scipy
 from matplotlib import pyplot as plt
+import matplotlib.dates as mdates
 # from processing import *
 import pandas as pd
 
@@ -13,38 +14,45 @@ FILE_NAME = '12MAR21.CSV'
 SAMPLE_START = 0
 SAMPLE_FINISH = -1
 
-START_DATE = '3/12/2021 19:14:59'
+START_DATE = '3/12/2021 19:14:58'
 END_DATE = '3/12/2021 19:15:00'
 
 
 def main():
 
     df = initialization()
+
+    temp = df.dropna(axis=1)
+
+    print(temp)
+
+    print(df.min(skipna=True))
+    print(df.max(skipna=True))
+
     df = df.interpolate(method='linear', limit_direction='both')
 
-    print(df)
-
-    df.plot()
+    ax = df.plot(x_compat=True, grid=True)
+    ax.xaxis.set_major_locator(mdates.MicrosecondLocator(interval=100000))
     plt.show()
 
-    values = df.values
+    # values = df.values
+    #
+    # length = len(values.T[0])
+    # ys = [scipy.fft.fft(value) for value in values.T]
+    #
+    # p2s = [np.abs(y) / length for y in ys]
+    # p1s = [p2[0: length // 2 + 1] for p2 in p2s]
+    # p1s[:][2: -2] = [2 * p1[2: -2] for p1 in p1s]
+    #
+    # f_s = 60
+    # f = f_s * np.arange(0, (length / 2), 1) / length
 
-    length = len(values.T[0])
-    ys = [scipy.fft.fft(value) for value in values.T]
-
-    p2s = [np.abs(y) / length for y in ys]
-    p1s = [p2[0: length // 2 + 1] for p2 in p2s]
-    p1s[:][2: -2] = [2 * p1[2: -2] for p1 in p1s]
-
-    f_s = 60
-    f = f_s * np.arange(0, (length / 2), 1) / length
-
-    plt.figure()
-    plt.title('Single-Sided Amplitude Spectrum of X(t)')
-    plt.xlabel('f (Hz)')
-    plt.ylabel('|P1(f)|')
-    [plt.plot(f, p1) for p1 in p1s]
-    plt.show()
+    # plt.figure()
+    # plt.title('Single-Sided Amplitude Spectrum of X(t)')
+    # plt.xlabel('f (Hz)')
+    # plt.ylabel('|P1(f)|')
+    # [plt.plot(f, p1) for p1 in p1s]
+    # plt.show()
 
     return
 
@@ -69,6 +77,10 @@ def initialization():
     index = pd.date_range(start=START_DATE, end=END_DATE, freq='1ms')
 
     df = df.reindex(index=index)
+
+    first_valid = df.apply(pd.Series.first_valid_index).min()
+    last_valid = df.apply(pd.Series.last_valid_index).max()
+    df = df[first_valid:last_valid]
 
     return df
 
